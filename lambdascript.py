@@ -6,16 +6,33 @@ import pandas as pd
 import numpy as np
 
 def lambda_handler(event, context):
-    # Connecting to RDS MySQL database
-    rds_host = 'your-rds-endpoint'
-    username = 'your-username'
-    password = 'your-password'
-    database_name = 'your-database'
+    secret_name = "your-secret-name"
+    region_name = "your-region"
 
-    connection = pymysql.connect(host=rds_host,
-                                user=username,
-                                password=password,
-                                database=database_name)
+    # Connect to AWS Secrets Manager
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        # Retrieve the secret
+        secret_response = client.get_secret_value(SecretId=secret_name)
+        secret_data = secret_response['SecretString']
+        secret_dict = json.loads(secret_data)
+
+        # Extracting credentials from the secret
+        rds_host = secret_dict['rds_endpoint']
+        username = secret_dict['db_username']
+        password = secret_dict['db_password']
+        database_name = secret_dict['db_name']
+
+        # Connecting to RDS MySQL database
+        connection = pymysql.connect(host=rds_host,
+                                     user=username,
+                                     password=password,
+                                     database=database_name)
     
     # Getting the last processed entry from an environment variable
     last_processed_entry = get_last_processed_entry()
